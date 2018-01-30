@@ -190,11 +190,93 @@ void GetLogicalCellIndex(int *idx, int cellId, const int *dims)
 void EvaluateVectorFieldAtLocation(const float *pt, const int *dims, const float *X, 
                               const float *Y, const float *F, float *rv)
 {
-    // IMPLEMENT ME!
+    //setup
+    rv[0] = 0;
+    rv[1] = 0;
 
-    rv[0] = 0; // setting the x-component of the velocity
-    rv[1] = 0; // setting the y-component of the velocity
+    // Some error checking!
+    //if the x point is below the first (lowest) x dimension or past the last (greatest) x dimension
+    if ((pt[0] < X[0]) || (pt[0] > X[dims[0]-1])){
+        return ;
+    }
+    //if the given y point is below the lowest y dimension or beyond the greatest y dimension
+    if ((pt[1] < Y[0]) || (pt[1] > Y[dims[1]-1])){
+        return ;
+    }
+
+    int i, j;
+    int coords[2] = {0, 0}; //the logical point index representing the cell
+    for (i = 0; i < dims[0]-1; i++){ //iterate through x dimensions, if the point is bracketed between two x's
+        if ((X[i] <= pt[0]) && (pt[0] < X[i+1])){
+            coords[0] = i; //store the x index away as the logical x
+            break;
+        }
+    }
+    for (j = 0; j < dims[1]-1; j++){ //iterate through y dimensions
+        if ((Y[j] <= pt[1]) && (pt[1] < Y[j+1])){ //if the pt is between the actual Y dimensions
+            coords[1] = j; //store away the logical y index
+            break;
+        }
+    }
+    // placeholders for logical point indices for lowerleft, lowerright, upperleft, upperright
+    int ll[2];
+    int lr[2];
+    int ul[2];
+    int ur[2];
+    // placeholders for point indices for ll, lr, ul, ur
+    int llInd, lrInd, ulInd, urInd;
+    /* ll = i,j
+    // lr = i+1, j
+    // ul = i, j+1
+    // ur = i+1, j+1 */
+    ll[0] = coords[0];
+    ll[1] = coords[1];
+    lr[0] = coords[0]+1;
+    lr[1] = coords[1];
+    ul[0] = coords[0];
+    ul[1] = coords[1]+1;
+    ur[0] = coords[0]+1;
+    ur[1] = coords[1]+1;
+    llInd = 2*GetPointIndex(ll, dims);
+    lrInd = 2*GetPointIndex(lr, dims);
+    ulInd = 2*GetPointIndex(ul, dims);
+    urInd = 2*GetPointIndex(ur, dims);
+
+    // store away the Vector values at each point
+    float Fll[2], Flr[2], Ful[2], Fur[2];
+    Fll[0] = F[llInd+0];
+    Fll[1] = F[llInd+1];
+    Flr[0] = F[lrInd+0];
+    Flr[1] = F[lrInd+1];
+    Ful[0] = F[ulInd+0];
+    Ful[1] = F[ulInd+1];
+    Fur[0] = F[urInd+0];
+    Fur[1] = F[urInd+1];
+    
+    // t value - make sure to calculate actual X coordinates, NOT logical point index
+    float bottomT = (pt[0]-X[ll[0]]) / (X[lr[0]]-X[ll[0]]);
+    float xbottomF = Fll[0] + bottomT * (Flr[0] - Fll[0]);
+    float ybottomF = Fll[1] + bottomT * (Flr[1] - Fll[1]);
+    
+    // t value - this is unnecessary because it's the same as bottomT
+    float topT = (pt[0]-X[ul[0]]) / (X[ur[0]]-X[ul[0]]);
+    float xtopF = Ful[0] + topT * (Fur[0] - Ful[0]);
+    float ytopF = Ful[1] + topT * (Fur[1] - Ful[1]);
+
+    float midT = (pt[1]-Y[ll[1]]) / (Y[ul[1]]-Y[ll[1]]);
+    float xmidF = xbottomF + midT * (xtopF-xbottomF);
+    float ymidF = ybottomF + midT * (ytopF-ybottomF);
+
+    rv[0] = xmidF; // setting the x-component of the velocity
+    rv[1] = ymidF; // setting the y-component of the velocity
 }
+
+
+// *** Self-defined function ******
+float GetSpeedOfVector(float* vector){
+    return sqrt(vector[0]*vector[0] + vector[1]*vector[1]);
+}
+// ********************************
 
 // ****************************************************************************
 //  Function: AdvectWithEulerStep
@@ -227,16 +309,29 @@ AdvectWithEulerStep(const float *pt, const int *dims, const float *X,
                     const float *Y, const float *F, 
                     float h, int nsteps, float *output_locations, float *speeds)
 {
-    // IMPLEMENT ME!
+    float current[2] = {0.0, 0.0};
+    float currentspeed;
+    float prev[2];
+    float new_location[2] = {0.0, 0.0};
 
-    output_locations[0] = 0; // set the x component of the first output location
-    output_locations[1] = 0; // set the y component of the first output location
-    output_locations[2] = 0; // set the x component of the second output location
-    output_locations[3] = 0; // set the y component of the second output location
-    // ...
-    speeds[0] = 0; // set the speed at the first output location
-    speeds[1] = 0; // set the speed at the first output location
-    // ...
+    //set up
+    output_locations[0] = pt[0];
+    output_locations[1] = pt[1];
+    EvaluateVectorFieldAtLocation(pt, dims, X, Y, F, current);
+    currentspeed = GetSpeedOfVector(current);
+    speeds[0] = currentspeed;
+    
+    //step forward
+    for (int i = 0; i < nsteps+1; i++){
+        prev[0] = output_locations[i*2];
+        prev[1] = output_locations[i*2+1];
+        EvaluateVectorFieldAtLocation(prev, dims, X, Y, F, current);
+        new_location[0] = prev[0] + h*current[0];
+        new_location[1] = prev[1] + h*current[1];
+        output_locations[i*2] = new_location[0];
+        output_locations[i*2+1] = new_location[1];
+        speeds[i] = GetSpeedOfVector(new_location);
+    }
 }
 
 // ****************************************************************************
@@ -254,6 +349,11 @@ AdvectWithEulerStep(const float *pt, const int *dims, const float *X,
 float
 CalculateArcLength(const float *output_locations, int nlocations)
 {
+    //locations[0] = x coord of first point
+    //locations[1] = y coord of first point
+    //locations[2] = x coord of second point
+    //locations[3] = y coord of second point ..?
+    //returns total distance of dist(pt1, pt2) + dist(pt2, pt3) + dist(pt3, pt4)...
     // IMPLEMENT ME!
     return 0;
 }
