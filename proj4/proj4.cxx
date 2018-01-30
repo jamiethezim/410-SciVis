@@ -339,10 +339,12 @@ AdvectWithEulerStep(const float *pt, const int *dims, const float *X,
 float GetDistanceBetweenPoints(float* first, float* second){
     float deltax = second[0] - first[0];
     float deltay = second[1] - first[1];
-    float dist = sqrt(deltax*deltax + deltay*deltay);
-    return dist;
+    return sqrt(deltax*deltax + deltay*deltay);
+    
 }
 // *************************************
+
+
 // ****************************************************************************
 //  Function: CalculateArcLength
 //
