@@ -273,10 +273,11 @@ void EvaluateVectorFieldAtLocation(const float *pt, const int *dims, const float
 
 
 // *** Self-defined function ******
+    // Get size (magnitude) of vector
+// ********************************
 float GetSpeedOfVector(float* vector){
     return sqrt(vector[0]*vector[0] + vector[1]*vector[1]);
 }
-// ********************************
 
 // ****************************************************************************
 //  Function: AdvectWithEulerStep
@@ -309,7 +310,7 @@ AdvectWithEulerStep(const float *pt, const int *dims, const float *X,
                     const float *Y, const float *F, 
                     float h, int nsteps, float *output_locations, float *speeds)
 {
-    float current[2] = {0.0, 0.0};
+    float current_velocity[2] = {0.0, 0.0};
     float currentspeed;
     float prev[2];
     float new_location[2] = {0.0, 0.0};
@@ -317,20 +318,18 @@ AdvectWithEulerStep(const float *pt, const int *dims, const float *X,
     //set up
     output_locations[0] = pt[0];
     output_locations[1] = pt[1];
-    EvaluateVectorFieldAtLocation(pt, dims, X, Y, F, current);
-    currentspeed = GetSpeedOfVector(current);
+    EvaluateVectorFieldAtLocation(pt, dims, X, Y, F, current_velocity);
+    currentspeed = GetSpeedOfVector(current_velocity);
     speeds[0] = currentspeed;
     
-    //step forward
-    for (int i = 0; i < nsteps+1; i++){
-        prev[0] = output_locations[i*2];
-        prev[1] = output_locations[i*2+1];
-        EvaluateVectorFieldAtLocation(prev, dims, X, Y, F, current);
-        new_location[0] = prev[0] + h*current[0];
-        new_location[1] = prev[1] + h*current[1];
-        output_locations[i*2] = new_location[0];
-        output_locations[i*2+1] = new_location[1];
-        speeds[i] = GetSpeedOfVector(new_location);
+    //step forward 
+    for (int i = 1; i < nsteps+1; i++){
+        prev[0] = output_locations[(i-1)*2];
+        prev[1] = output_locations[(i-1)*2+1];
+        EvaluateVectorFieldAtLocation(prev, dims, X, Y, F, current_velocity);
+        output_locations[i*2] = prev[0] + h*current_velocity[0];
+        output_locations[i*2+1] = prev[1] + h*current_velocity[1];
+        speeds[i] = GetSpeedOfVector(current_velocity);
     }
 }
 
