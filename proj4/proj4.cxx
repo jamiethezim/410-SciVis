@@ -333,6 +333,16 @@ AdvectWithEulerStep(const float *pt, const int *dims, const float *X,
     }
 }
 
+
+// ******* Helper Function *************
+// Get the distance between two points
+float GetDistanceBetweenPoints(float* first, float* second){
+    float deltax = second[0] - first[0];
+    float deltay = second[1] - first[1];
+    float dist = sqrt(deltax*deltax + deltay*deltay);
+    return dist;
+}
+// *************************************
 // ****************************************************************************
 //  Function: CalculateArcLength
 //
@@ -351,10 +361,20 @@ CalculateArcLength(const float *output_locations, int nlocations)
     //locations[0] = x coord of first point
     //locations[1] = y coord of first point
     //locations[2] = x coord of second point
-    //locations[3] = y coord of second point ..?
-    //returns total distance of dist(pt1, pt2) + dist(pt2, pt3) + dist(pt3, pt4)...
-    // IMPLEMENT ME!
-    return 0;
+    //locations[3] = y coord of second point 
+    //returns total (sum) distance of dist(pt1, pt2) + dist(pt2, pt3) + dist(pt3, pt4)...
+    float totaldist = 0.0;
+    float pt1[2];
+    float pt2[2];
+    // for nlocations points, there are nlocations-1 segments
+    for (int i=0; i<nlocations-1; i++){
+        pt1[0] = output_locations[i*2];
+        pt1[1] = output_locations[i*2+1];
+        pt2[0] = output_locations[(i+1)*2];
+        pt2[1] = output_locations[(i+1)*2+1];
+        totaldist += GetDistanceBetweenPoints(pt1, pt2);
+    }
+    return totaldist;
 }
 
 void
