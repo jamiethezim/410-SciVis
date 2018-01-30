@@ -1,0 +1,3 @@
+/Users/jamiezimmerman/Desktop/UOSENIOR/410-SciVis/proj3/CMakeFiles/rebuild_cache.dir
+/Users/jamiezimmerman/Desktop/UOSENIOR/410-SciVis/proj3/CMakeFiles/edit_cache.dir
+/Users/jamiezimmerman/Desktop/UOSENIOR/410-SciVis/proj3/CMakeFiles/proj3.dir
