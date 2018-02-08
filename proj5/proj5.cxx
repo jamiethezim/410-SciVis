@@ -258,6 +258,87 @@ SegmentList::MakePolyData(void)
     return pd;
 }
 
+
+
+// *************************
+// helper function
+// args:
+// cellId - the cell you want to classify
+// int isovalue - the deciding value that determines presence of point values
+// dims - int* the dimensions of the grid
+
+void GetFourCorners(int* four_corners, int cellId, const int* dims){
+    int coords[2];
+    GetLogicalCellIndex(coords, cellId, dims);
+
+    int ll[2];
+    int lr[2];
+    int ul[2];
+    int ur[2];
+    // placeholders for point indices for ll, lr, ul, ur
+    int llInd, lrInd, ulInd, urInd;
+    /* ll = i,j
+    // lr = i+1, j
+    // ul = i, j+1
+    // ur = i+1, j+1 */
+    ll[0] = coords[0];
+    ll[1] = coords[1];
+    lr[0] = coords[0]+1;
+    lr[1] = coords[1];
+    ul[0] = coords[0];
+    ul[1] = coords[1]+1;
+    ur[0] = coords[0]+1;
+    ur[1] = coords[1]+1;
+    llInd = GetPointIndex(ll, dims);
+    lrInd = GetPointIndex(lr, dims);
+    ulInd = GetPointIndex(ul, dims);
+    urInd = GetPointIndex(ur, dims);
+
+    four_corners[0] = llInd;
+    four_corners[1] = lrInd;
+    four_corners[2] = ulInd;
+    four_corners[3] = urInd;
+
+}
+
+// ***********************************
+// helper function
+// identifies which case the cell isosurface is
+// from case 0 to case 15
+// args:
+//   cellId - the cell we want to classify
+//   isovalue - the breaking point for determining if the corner is > or <
+//   dims - int array - dims[0] is number of x points, dims[1] number of y points. 
+//         needed for getting four corners of cell
+//   F - the float values at every point
+// ***********************************
+int IdentifyCase(int cellId, float isovalue, const int* dims, const float* F){
+    int corners[4];
+    GetFourCorners(corners, cellId, dims);
+    // now corners[0] is pointidx of lower left
+    // corners[1] is pointidx of lr
+    // corners[2] is pointidx of ul
+    // corners[3] is pointidx of ur
+    int classification = 0x0;
+    // ur is V3
+    if (F[corners[3]] > isovalue){
+        classification |= 0x8;
+    }
+    // ul is V2
+    if (F[corners[2]] > isovalue){
+        classification |= 0x4;
+    }
+    // lr is V1
+    if (F[corners[1]] > isovalue){
+        classification |= 0x2;
+    }
+    // ll is V0
+    if (F[corners[0]] > isovalue){
+        classification |= 0x1;
+    }
+    return classification;
+}
+
 int main()
 {
     int  i, j;
@@ -274,6 +355,26 @@ int main()
     float *Y = (float *) rgrid->GetYCoordinates()->GetVoidPointer(0);
     float *F = (float *) rgrid->GetPointData()->GetScalars()->GetVoidPointer(0);
     
+
+    int numSegments[16] = {0, 1, 1, 1, 1, 1, 2, 1, 1, 2, 1, 1, 1, 1, 1, 0};
+    int lup[16][4];
+    lup[0][0] = lup[0][1] = lup[0][2] = lup[0][3] = -1;
+    lup[1][0] = 0; lup[1][1] = 3; lup[1][2] = lup[1][3] = -1;
+    lup[2][0] = 0; lup[1][1] = 1; lup[1][2] = lup[1][3] = -1;
+    lup[3][0] = 1; lup[3][1] = 3; lup[3][2] = lup[3][3] = -1;
+    lup[4][0] = 2; lup[4][1] = 3; lup[4][2] = lup[4][3] = -1;
+    lup[5][0] = 0; lup[5][1] = 2; lup[5][2] = lup[5][3] = -1;
+    lup[6][0] = 0; lup[6][1] = 1; lup[6][2] = 2; lup[6][3] = 3;
+    lup[7][0] = 1; lup[7][1] = 2; lup[7][2] = lup[7][3] = -1;
+    lup[8][0] = 1; lup[8][1] = 2; lup[8][2] = lup[8][3] = -1;
+    lup[9][0] = 0; lup[9][1] = 3; lup[9][2] = 1; lup[9][3] = 2;
+    lup[10][0] = 0; lup[10][1] = 2; lup[10][2] = lup[10][3] = -1;
+    lup[11][0] = 2; lup[11][1] = 3; lup[11][2] = lup[11][3] = -1;
+    lup[12][0] = 1; lup[12][1] = 3; lup[12][2] = lup[12][3] = -1;
+    lup[13][0] = 0; lup[13][1] = 1; lup[13][2] = lup[13][3] = -1;
+    lup[14][0] = 0; lup[14][1] = 3; lup[14][2] = lup[14][3] = -1;
+    lup[15][0] = lup[15][1] = lup[15][2] = lup[15][3] = -1;
+
     // Add 4 segments that put a frame around your isolines.  This also
     // documents how to use "AddSegment".
     SegmentList sl;
@@ -282,6 +383,11 @@ int main()
     sl.AddSegment(-10, -10, -10, +10);
     sl.AddSegment(+10, -10, +10, +10);
 
+    //iterate through cells
+    int i = 0;
+    for (i = 0; i < GetNumberOfCells(dims), i++){
+
+    }
 // YOUR CODE TO GENERATE ISOLINES SHOULD GO HERE!
 
     vtkPolyData *pd = sl.MakePolyData();
