@@ -263,7 +263,7 @@ int main()
     int  i, j;
 
     vtkDataSetReader *rdr = vtkDataSetReader::New();
-    rdr->SetFileName("proj6.vtk");
+    rdr->SetFileName("proj5.vtk");
     rdr->Update();
 
     int dims[3];
