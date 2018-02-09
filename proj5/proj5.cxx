@@ -266,6 +266,8 @@ SegmentList::MakePolyData(void)
 // cellId - the cell you want to classify
 // int isovalue - the deciding value that determines presence of point values
 // dims - int* the dimensions of the grid
+//
+// returns the point indices of the four corners of the cell
 
 void GetFourCorners(int* four_corners, int cellId, const int* dims){
     int coords[2];
@@ -339,6 +341,17 @@ int IdentifyCase(int cellId, float isovalue, const int* dims, const float* F){
     return classification;
 }
 
+// ******************************************
+// CalculatePosition
+// given FX, FA, FB, B, & A, we can find the position of the point! point X
+float CalculatePosition(float FX, float FA, float FB, float A, float B){
+    float res;
+    float FS = (FX - FA)/(FB - FA);
+    float t = B - A;
+    res = FS * t + A;
+    return res;
+}
+
 int main()
 {
     int  i, j;
@@ -383,10 +396,89 @@ int main()
     sl.AddSegment(-10, -10, -10, +10);
     sl.AddSegment(+10, -10, +10, +10);
 
+    float IsoVal = 3.2;
+    int icase;
+    int nsegments;
+    int fourcorns[4] = {0, 0, 0, 0};
+    int llInd;
+    int lrInd;
+    int urInd;
+    int ulInd;
+    int edge1;
+    int edge2;
+    float pt1[2] = {0.0, 0.0};
+    float pt2[2] = {0.0, 0.0};
     //iterate through cells
-    int i = 0;
-    for (i = 0; i < GetNumberOfCells(dims), i++){
-
+    for (i = 0; i < GetNumberOfCells(dims); i++){
+        icase = IdentifyCase(i, IsoVal, dims, F);
+        nsegments = numSegments[icase];
+        for (j = 0; j < nsegments; j++){
+            edge1 = lup[icase][2*j];
+            edge2 = lup[icase][2*j+1];
+            if (edge1 == -1 || edge2 == -1){
+                //no edge defined here
+                break;
+            }
+            GetFourCorners(fourcorns, i, dims);
+            if (edge1 == 0){
+                //interpolate ll -> lr
+                // fourcorns[0] is ll, fourcorns[1] is lr
+                llInd = fourcorns[0];
+                lrInd = fourcorns[1];
+                pt1[0] = CalculatePosition(IsoVal, F[llInd], F[lrInd], X[llInd], X[lrInd]);
+                pt1[1] = Y[llInd];
+            }
+            else if (edge1 == 1){
+                //interpolate lr -> ur
+                lrInd = fourcorns[1];
+                urInd = fourcorns[3];
+                pt1[0] = X[lrInd];
+                pt1[1] = CalculatePosition(IsoVal, F[lrInd], F[urInd], Y[lrInd], Y[urInd]);
+            }
+            else if (edge1 == 2){
+                //interpolate ul -> ur
+                ulInd = fourcorns[2];
+                urInd = fourcorns[3];
+                pt1[0] = Y[ulInd];
+                pt1[1] = CalculatePosition(IsoVal, F[ulInd], F[urInd], X[ulInd], X[urInd]);
+            }
+            else if (edge1 == 3){
+                //interpolate ll -> ul
+                llInd = fourcorns[0];
+                ulInd = fourcorns[2];
+                pt1[0] = X[llInd];
+                pt1[1] = CalculatePosition(IsoVal, F[llInd], F[ulInd], Y[llInd], Y[ulInd]);
+            }
+            if (edge2 == 0){
+                //interpolate ll -> lr
+                llInd = fourcorns[0];
+                lrInd = fourcorns[1];
+                pt2[0] = CalculatePosition(IsoVal, F[llInd], F[lrInd], X[llInd], X[lrInd]);
+                pt2[1] = Y[llInd];
+            }
+            else if (edge2 == 1){
+                //interpolate lr -> ur
+                lrInd = fourcorns[1];
+                urInd = fourcorns[3];
+                pt2[0] = X[lrInd];
+                pt2[1] = CalculatePosition(IsoVal, F[lrInd], F[urInd], Y[lrInd], Y[urInd]);
+            }
+            else if (edge2 == 2){
+                //interpolate ul -> ur
+                ulInd = fourcorns[2];
+                urInd = fourcorns[3];
+                pt2[0] = Y[ulInd];
+                pt2[1] = CalculatePosition(IsoVal, F[ulInd], F[urInd], X[ulInd], X[urInd]);
+            }
+            else if (edge2 == 3){
+                //interpolate ll -> ul
+                llInd = fourcorns[0];
+                ulInd = fourcorns[2];
+                pt2[0] = X[llInd];
+                pt2[1] = CalculatePosition(IsoVal, F[llInd], F[ulInd], Y[llInd], Y[ulInd]);
+            }
+            sl.AddSegment(pt1[0], pt1[1], pt2[0], pt2[1]);
+        }
     }
 // YOUR CODE TO GENERATE ISOLINES SHOULD GO HERE!
 
