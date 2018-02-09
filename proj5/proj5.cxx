@@ -369,6 +369,7 @@ int main()
     float *F = (float *) rgrid->GetPointData()->GetScalars()->GetVoidPointer(0);
     
 
+    fprintf(stdout, "min_x is %f, max_x is %f, min_y is %f, max_y is %f\n", X[0], X[dims[0]-1], Y[0], Y[dims[1]-1]);
     int numSegments[16] = {0, 1, 1, 1, 1, 1, 2, 1, 1, 2, 1, 1, 1, 1, 1, 0};
     int lup[16][4];
     lup[0][0] = lup[0][1] = lup[0][2] = lup[0][3] = -1;
@@ -420,63 +421,51 @@ int main()
                 break;
             }
             GetFourCorners(fourcorns, i, dims);
+            llInd = fourcorns[0];
+            lrInd = fourcorns[1];
+            ulInd = fourcorns[2];
+            urInd = fourcorns[3];
             if (edge1 == 0){
                 //interpolate ll -> lr
-                // fourcorns[0] is ll, fourcorns[1] is lr
-                llInd = fourcorns[0];
-                lrInd = fourcorns[1];
                 pt1[0] = CalculatePosition(IsoVal, F[llInd], F[lrInd], X[llInd], X[lrInd]);
                 pt1[1] = Y[llInd];
             }
             else if (edge1 == 1){
                 //interpolate lr -> ur
-                lrInd = fourcorns[1];
-                urInd = fourcorns[3];
                 pt1[0] = X[lrInd];
                 pt1[1] = CalculatePosition(IsoVal, F[lrInd], F[urInd], Y[lrInd], Y[urInd]);
             }
             else if (edge1 == 2){
                 //interpolate ul -> ur
-                ulInd = fourcorns[2];
-                urInd = fourcorns[3];
                 pt1[0] = Y[ulInd];
                 pt1[1] = CalculatePosition(IsoVal, F[ulInd], F[urInd], X[ulInd], X[urInd]);
             }
             else if (edge1 == 3){
                 //interpolate ll -> ul
-                llInd = fourcorns[0];
-                ulInd = fourcorns[2];
                 pt1[0] = X[llInd];
                 pt1[1] = CalculatePosition(IsoVal, F[llInd], F[ulInd], Y[llInd], Y[ulInd]);
             }
             if (edge2 == 0){
                 //interpolate ll -> lr
-                llInd = fourcorns[0];
-                lrInd = fourcorns[1];
                 pt2[0] = CalculatePosition(IsoVal, F[llInd], F[lrInd], X[llInd], X[lrInd]);
                 pt2[1] = Y[llInd];
             }
             else if (edge2 == 1){
                 //interpolate lr -> ur
-                lrInd = fourcorns[1];
-                urInd = fourcorns[3];
                 pt2[0] = X[lrInd];
                 pt2[1] = CalculatePosition(IsoVal, F[lrInd], F[urInd], Y[lrInd], Y[urInd]);
             }
             else if (edge2 == 2){
                 //interpolate ul -> ur
-                ulInd = fourcorns[2];
-                urInd = fourcorns[3];
                 pt2[0] = Y[ulInd];
                 pt2[1] = CalculatePosition(IsoVal, F[ulInd], F[urInd], X[ulInd], X[urInd]);
             }
             else if (edge2 == 3){
                 //interpolate ll -> ul
-                llInd = fourcorns[0];
-                ulInd = fourcorns[2];
                 pt2[0] = X[llInd];
                 pt2[1] = CalculatePosition(IsoVal, F[llInd], F[ulInd], Y[llInd], Y[ulInd]);
             }
+            fprintf(stdout, "pt1x %f, pt1y %f, pt2x %f, pt2y %f\n", pt1[0], pt1[1], pt2[0], pt2[1]);
             sl.AddSegment(pt1[0], pt1[1], pt2[0], pt2[1]);
         }
     }
