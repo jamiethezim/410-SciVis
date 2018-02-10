@@ -345,7 +345,7 @@ int IdentifyCase(int cellId, float isovalue, const int* dims, const float* F){
 // CalculatePosition
 // given FX, FA, FB, B, & A, we can find the position of the point! point X
 float CalculatePosition(float FX, float FA, float FB, float A, float B){
-    float res;
+    float res = 0.0;
     float FS = (FX - FA)/(FB - FA);
     float t = B - A;
     res = FS * t + A;
@@ -374,7 +374,7 @@ int main()
     int lup[16][4];
     lup[0][0] = lup[0][1] = lup[0][2] = lup[0][3] = -1;
     lup[1][0] = 0; lup[1][1] = 3; lup[1][2] = lup[1][3] = -1;
-    lup[2][0] = 0; lup[1][1] = 1; lup[1][2] = lup[1][3] = -1;
+    lup[2][0] = 0; lup[2][1] = 1; lup[2][2] = lup[2][3] = -1;
     lup[3][0] = 1; lup[3][1] = 3; lup[3][2] = lup[3][3] = -1;
     lup[4][0] = 2; lup[4][1] = 3; lup[4][2] = lup[4][3] = -1;
     lup[5][0] = 0; lup[5][1] = 2; lup[5][2] = lup[5][3] = -1;
@@ -405,70 +405,90 @@ int main()
     int lrInd;
     int urInd;
     int ulInd;
+    int ll[2] = {0, 0};
+    int lr[2] = {0, 0};
+    int ul[2] = {0, 0};
+    int ur[2] = {0, 0};
+    float Fll = 0.0;
+    float Flr = 0.0;
+    float Ful = 0.0;
+    float Fur = 0.0;
     int edge1;
     int edge2;
     float pt1[2] = {0.0, 0.0};
     float pt2[2] = {0.0, 0.0};
     //iterate through cells
+    fprintf(stdout, "num cells is %d\n", GetNumberOfCells(dims));
     for (i = 0; i < GetNumberOfCells(dims); i++){
         icase = IdentifyCase(i, IsoVal, dims, F);
         nsegments = numSegments[icase];
+        fprintf(stdout, "cell %d is case %d and has %d segments and \n", i, icase, nsegments);
         for (j = 0; j < nsegments; j++){
             edge1 = lup[icase][2*j];
             edge2 = lup[icase][2*j+1];
-            if (edge1 == -1 || edge2 == -1){
-                //no edge defined here
-                break;
-            }
+            fprintf(stdout, "\thas edge1 at %d and edge2 at %d\n", edge1, edge2);
             GetFourCorners(fourcorns, i, dims);
             llInd = fourcorns[0];
             lrInd = fourcorns[1];
             ulInd = fourcorns[2];
             urInd = fourcorns[3];
+            GetLogicalPointIndex(ll, llInd, dims);
+            GetLogicalPointIndex(lr, lrInd, dims);
+            GetLogicalPointIndex(ul, ulInd, dims);
+            GetLogicalPointIndex(ur, urInd, dims);
+            Fll = F[llInd];
+            Flr = F[lrInd];
+            Ful = F[ulInd];
+            Fur = F[urInd];
+            fprintf(stdout, "ll is %f,%f has val %f\n", X[ll[0]], Y[ll[1]], Fll);
+            fprintf(stdout, "lr is %f,%f has val %f\n", X[lr[0]], Y[lr[1]], Flr);
+            fprintf(stdout, "ul is %f,%f has val %f\n", X[ul[0]], Y[ul[1]], Ful);
+            fprintf(stdout, "ur is %f,%f has val %f\n", X[ur[0]], Y[ur[1]], Fur);
             if (edge1 == 0){
                 //interpolate ll -> lr
-                pt1[0] = CalculatePosition(IsoVal, F[llInd], F[lrInd], X[llInd], X[lrInd]);
-                pt1[1] = Y[llInd];
+                pt1[0] = CalculatePosition(IsoVal, Fll, Flr, X[ll[0]], X[lr[0]]);
+                pt1[1] = Y[ll[1]];
             }
             else if (edge1 == 1){
                 //interpolate lr -> ur
-                pt1[0] = X[lrInd];
-                pt1[1] = CalculatePosition(IsoVal, F[lrInd], F[urInd], Y[lrInd], Y[urInd]);
+                pt1[0] = X[lr[0]];
+                pt1[1] = CalculatePosition(IsoVal, Fur, Flr, Y[lr[1]], Y[ur[1]]); // ****** comment this!
             }
             else if (edge1 == 2){
                 //interpolate ul -> ur
-                pt1[0] = Y[ulInd];
-                pt1[1] = CalculatePosition(IsoVal, F[ulInd], F[urInd], X[ulInd], X[urInd]);
+                pt1[0] = Y[ul[1]];
+                pt1[1] = CalculatePosition(IsoVal, Ful, Fur, X[ul[0]], X[ur[0]]);
             }
             else if (edge1 == 3){
                 //interpolate ll -> ul
-                pt1[0] = X[llInd];
-                pt1[1] = CalculatePosition(IsoVal, F[llInd], F[ulInd], Y[llInd], Y[ulInd]);
+                pt1[0] = X[ll[0]];
+                pt1[1] = CalculatePosition(IsoVal, F[ulInd], F[llInd], Y[ll[1]], Y[ul[1]]); //*** comment this!
             }
             if (edge2 == 0){
                 //interpolate ll -> lr
-                pt2[0] = CalculatePosition(IsoVal, F[llInd], F[lrInd], X[llInd], X[lrInd]);
-                pt2[1] = Y[llInd];
+                pt2[0] = CalculatePosition(IsoVal, F[llInd], F[lrInd], X[ll[0]], X[lr[0]]);
+                pt2[1] = Y[ll[1]];
             }
             else if (edge2 == 1){
                 //interpolate lr -> ur
-                pt2[0] = X[lrInd];
-                pt2[1] = CalculatePosition(IsoVal, F[lrInd], F[urInd], Y[lrInd], Y[urInd]);
+                pt2[0] = X[lr[0]];
+                pt2[1] = CalculatePosition(IsoVal, F[urInd], F[lrInd], Y[lr[1]], Y[ur[1]]); //*comment this!!!
             }
             else if (edge2 == 2){
                 //interpolate ul -> ur
-                pt2[0] = Y[ulInd];
-                pt2[1] = CalculatePosition(IsoVal, F[ulInd], F[urInd], X[ulInd], X[urInd]);
+                pt2[0] = Y[ul[1]];
+                pt2[1] = CalculatePosition(IsoVal, F[ulInd], F[urInd], X[ul[0]], X[ur[0]]);
             }
             else if (edge2 == 3){
                 //interpolate ll -> ul
-                pt2[0] = X[llInd];
-                pt2[1] = CalculatePosition(IsoVal, F[llInd], F[ulInd], Y[llInd], Y[ulInd]);
+                pt2[0] = X[ll[0]];
+                pt2[1] = CalculatePosition(IsoVal, F[ulInd], F[llInd], Y[ll[1]], Y[ul[1]]); ///**** comment this!
             }
-            fprintf(stdout, "pt1x %f, pt1y %f, pt2x %f, pt2y %f\n", pt1[0], pt1[1], pt2[0], pt2[1]);
+            fprintf(stdout, "pt1x %f,%f, pt2x %f,%f\n", pt1[0], pt1[1], pt2[0], pt2[1]);
             sl.AddSegment(pt1[0], pt1[1], pt2[0], pt2[1]);
         }
     }
+    fprintf(stdout, "i'm done!\n");
 // YOUR CODE TO GENERATE ISOLINES SHOULD GO HERE!
 
     vtkPolyData *pd = sl.MakePolyData();
