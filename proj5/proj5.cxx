@@ -440,10 +440,10 @@ int main()
             Flr = F[lrInd];
             Ful = F[ulInd];
             Fur = F[urInd];
-            fprintf(stdout, "ll is %f,%f has val %f\n", X[ll[0]], Y[ll[1]], Fll);
-            fprintf(stdout, "lr is %f,%f has val %f\n", X[lr[0]], Y[lr[1]], Flr);
-            fprintf(stdout, "ul is %f,%f has val %f\n", X[ul[0]], Y[ul[1]], Ful);
-            fprintf(stdout, "ur is %f,%f has val %f\n", X[ur[0]], Y[ur[1]], Fur);
+            fprintf(stdout, "\tll is %f,%f has val %f\n", X[ll[0]], Y[ll[1]], Fll);
+            fprintf(stdout, "\tlr is %f,%f has val %f\n", X[lr[0]], Y[lr[1]], Flr);
+            fprintf(stdout, "\tul is %f,%f has val %f\n", X[ul[0]], Y[ul[1]], Ful);
+            fprintf(stdout, "\tur is %f,%f has val %f\n", X[ur[0]], Y[ur[1]], Fur);
             if (edge1 == 0){
                 //interpolate ll -> lr
                 pt1[0] = CalculatePosition(IsoVal, Fll, Flr, X[ll[0]], X[lr[0]]);
@@ -452,17 +452,17 @@ int main()
             else if (edge1 == 1){
                 //interpolate lr -> ur
                 pt1[0] = X[lr[0]];
-                pt1[1] = CalculatePosition(IsoVal, Fur, Flr, Y[lr[1]], Y[ur[1]]); // ****** comment this!
+                pt1[1] = CalculatePosition(IsoVal, Flr, Fur, Y[lr[1]], Y[ur[1]]); // ****** comment this!
             }
             else if (edge1 == 2){
                 //interpolate ul -> ur
-                pt1[0] = Y[ul[1]];
-                pt1[1] = CalculatePosition(IsoVal, Ful, Fur, X[ul[0]], X[ur[0]]);
+                pt1[0] = CalculatePosition(IsoVal, Ful, Fur, X[ul[0]], X[ur[0]]);
+                pt1[1] = Y[ul[1]];
             }
             else if (edge1 == 3){
                 //interpolate ll -> ul
                 pt1[0] = X[ll[0]];
-                pt1[1] = CalculatePosition(IsoVal, F[ulInd], F[llInd], Y[ll[1]], Y[ul[1]]); //*** comment this!
+                pt1[1] = CalculatePosition(IsoVal, F[llInd], F[ulInd], Y[ll[1]], Y[ul[1]]); //*** comment this!
             }
             if (edge2 == 0){
                 //interpolate ll -> lr
@@ -472,19 +472,19 @@ int main()
             else if (edge2 == 1){
                 //interpolate lr -> ur
                 pt2[0] = X[lr[0]];
-                pt2[1] = CalculatePosition(IsoVal, F[urInd], F[lrInd], Y[lr[1]], Y[ur[1]]); //*comment this!!!
+                pt2[1] = CalculatePosition(IsoVal, F[lrInd], F[urInd], Y[lr[1]], Y[ur[1]]); //*comment this!!!
             }
             else if (edge2 == 2){
                 //interpolate ul -> ur
-                pt2[0] = Y[ul[1]];
-                pt2[1] = CalculatePosition(IsoVal, F[ulInd], F[urInd], X[ul[0]], X[ur[0]]);
+                pt2[0] = CalculatePosition(IsoVal, F[ulInd], F[urInd], X[ul[0]], X[ur[0]]);
+                pt2[1] = Y[ul[1]];
             }
             else if (edge2 == 3){
                 //interpolate ll -> ul
                 pt2[0] = X[ll[0]];
-                pt2[1] = CalculatePosition(IsoVal, F[ulInd], F[llInd], Y[ll[1]], Y[ul[1]]); ///**** comment this!
+                pt2[1] = CalculatePosition(IsoVal, F[llInd], F[ulInd], Y[ll[1]], Y[ul[1]]); ///**** comment this!
             }
-            fprintf(stdout, "pt1x %f,%f, pt2x %f,%f\n", pt1[0], pt1[1], pt2[0], pt2[1]);
+            fprintf(stdout, "\tpt1x %f,%f, pt2x %f,%f\n", pt1[0], pt1[1], pt2[0], pt2[1]);
             sl.AddSegment(pt1[0], pt1[1], pt2[0], pt2[1]);
         }
     }
