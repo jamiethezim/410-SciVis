@@ -53,6 +53,7 @@
 #include <vtkSmartPointer.h>
 
 #include "TriangleList.h"
+#include "tricase.cxx"
 
 static int Edges[12][2] = 
     {{0, 1}, {1, 3}, {2, 3}, {0, 2},
@@ -165,7 +166,7 @@ int GetCellIndex(const int *idx, const int *dims)
 void GetLogicalPointIndex(int *idx, int pointId, const int *dims)
 {
     // 3D
-    idx[0] = pointId%dim[0];
+    idx[0] = pointId%dims[0];
     idx[1] = (pointId/dims[0])%dims[1];
     idx[2] = pointId/(dims[0]*dims[1]);
 
@@ -219,17 +220,6 @@ void GetEightVertices(int* eight_vertices, int cellId, const int* dims){
     int coords[3]; //x, y, z of vertex 0
     GetLogicalCellIndex(coords, cellId, dims);
 
-    //logical point index
-    //coords is v0
-    int v0[3];
-    int v1[3];
-    int v2[3];
-    int v3[3];
-    int v4[3];
-    int v5[3];
-    int v6[3];
-    int v7[3];
-
     //coords [0] is x, coords[1] is y, coords[2] is z
     /* v0 is coords[0], coords[1], coords[2]
     v1 is coords[0]+1, coords[1], coords[2]
@@ -240,14 +230,14 @@ void GetEightVertices(int* eight_vertices, int cellId, const int* dims){
     v6 is coords[0], coords[1]+1, coords[2]+1
     v7 is coords[0]+1, coords[1]+1, coords[2]+1
     */
-    v0 = {coords[0], coords[1], coords[2]};
-    v1 = {coords[0]+1, coords[1], coords[2]};
-    v2 = {coords[0], coords[1]+1, coords[2]};
-    v3 = {coords[0]+1, coords[1]+1, coords[2]};
-    v4 = {coords[0], coords[1], coords[2]+1};
-    v5 = {coords[0]+1, coords[1], coords[2]+1};
-    v6 = {coords[0], coords[1]+1, coords[2]+1};
-    v7 = {coords[0]+1, coords[1]+1, coords[2]+1};
+    int v0[3] = {coords[0], coords[1], coords[2]};
+    int v1[3] = {coords[0]+1, coords[1], coords[2]};
+    int v2[3] = {coords[0], coords[1]+1, coords[2]};
+    int v3[3] = {coords[0]+1, coords[1]+1, coords[2]};
+    int v4[3] = {coords[0], coords[1], coords[2]+1};
+    int v5[3] = {coords[0]+1, coords[1], coords[2]+1};
+    int v6[3] = {coords[0], coords[1]+1, coords[2]+1};
+    int v7[3] = {coords[0]+1, coords[1]+1, coords[2]+1};
 
     eight_vertices[0] = GetPointIndex(v0, dims);
     eight_vertices[1] = GetPointIndex(v1, dims);
@@ -298,6 +288,7 @@ int IdentifyCase(int cellId, float isovalue, const int* dims, const float* F){
     }
     if (F[vertices[0]] > isovalue){
         classification |= 0x1;
+    }
     return classification;
 }
 
@@ -312,7 +303,51 @@ float CalculatePosition(float FX, float FA, float FB, float A, float B){
     return res;
 }
 
+// *************************************
+// given an edge case number (which edge?), and the ptindices of the endpoints of that egge
+// determine what A and B should be, and if they change in X direction, Y direction, and Z direction
+// interpolate the mid-distance location
+// and store the known other coordinates away too
+// return value is float** location, such that locations[0] is the X value, locations[1] is the Y value, and locations[2] Zvalue
+void DetermineLocation(float* locations, int edgenum, int pt1, int pt2, float isoval, const float* F, const float* X, const float* Y, const float* Z, const int* dims){
+    // need to get logical point indices of the two endpoints so we can get actual XYZ locations
+    int pt1_log[3];
+    int pt2_log[3];
+    GetLogicalPointIndex(pt1_log, pt1, dims);
+    GetLogicalPointIndex(pt2_log, pt2, dims);
 
+    float FA, FB, A, B, Xval, Yval, Zval = 0.0;
+
+    if ((edgenum == 0) || (edgenum == 2) || (edgenum == 4) || (edgenum == 6)){
+        // we know Y and Z, but don't know X
+        A = X[pt1_log[0]];
+        B = X[pt2_log[0]];
+        Xval = CalculatePosition(isoval, F[pt1], F[pt2], A, B);
+        Yval = Y[pt1_log[1]];
+        Zval = Z[pt1_log[2]];
+    } else if ((edgenum == 1) || (edgenum == 3) || (edgenum == 5) || (edgenum == 7)){
+        // we know X and Z, but don't know Y
+        Xval = X[pt1_log[0]];
+        A = Y[pt1_log[1]];
+        B = Y[pt2_log[1]];
+        Yval = CalculatePosition(isoval, F[pt1], F[pt2], A, B);
+        Zval = Z[pt1_log[2]];
+    } else { //edgenum 8, 9, 10, 11 are all delta Z
+        // we know X and Y but don't know Z
+        Xval = X[pt1_log[0]];
+        Yval = Y[pt1_log[1]];
+        A = Z[pt1_log[2]];
+        B = Z[pt2_log[2]];
+        Zval = CalculatePosition(isoval, F[pt1], F[pt2], A, B);
+    }
+    // now store the results in the return value pointer, and locations contains the actual location of the vertex of the triangle
+    locations[0] = Xval;
+    locations[1] = Yval;
+    locations[2] = Zval;
+}
+
+
+// ******************************************************************************************
 // helper function
 // tri is an input to the function that will contain the return value
 // returns 3 vertices composed of 3 endpoints
@@ -320,15 +355,17 @@ float CalculatePosition(float FX, float FA, float FB, float A, float B){
     // tri[0][0] is the actual x dimension, tri[0][1] is the actual y-dimension, tri[0][2] is the actual z dimension
 // tri[1] is the point of the triang on edge2
 // tri[2] is the point of the triang on edge3
-// int** vertices is the three edges described by vertex endpoints
+// int** tri_by_edges is the three edges described by vertex endpoints
+// static int Edges[12][2] = 
+//    {{0, 1}, {1, 3}, {2, 3}, {0, 2},
+//     {4, 5}, {5, 7}, {6, 7}, {4, 6},
+//     {0, 4}, {1, 5}, {2, 6}, {3, 7} };
 
-float** InterpolateTriangle(float** tri, int** tri_by_edges, int cellId, float isoval, const int* dims, const float* F, const float* X, const float* Y, const float* Z){
-                InterpolateTriangle(actual_triangle, new_triangle_by_edges, i, IsoVal, dims, F, X, Y, Z);
+void InterpolateTriangle(float** tri, int* tri_by_edges, int cellId, float isoval, const int* dims, const float* F, const float* X, const float* Y, const float* Z){
+    int pt0[2] = {Edges[tri_by_edges[0]][0], Edges[tri_by_edges[0]][1]}; // edge 0 between vertex 0 and vertex 1
+    int pt1[2] = {Edges[tri_by_edges[1]][0], Edges[tri_by_edges[1]][1]}; // edge 3 between vertex 0 and vertex 2
+    int pt2[2] = {Edges[tri_by_edges[2]][0], Edges[tri_by_edges[2]][1]}; // edge 8 between vertex 0 and vertex 4
 
-
-    int pt0[2] = Edges[tri_by_edges[0]]; // edge 0 between vertex 0 and vertex 1
-    int pt1[2] = Edges[tri_by_edges[1]] // edge 3 between vertex 0 and vertex 2
-    int pt2[2] = Edges[tri_by_edges[2]] // edge 8 between vertex 0 and vertex 4
     int all_vertices[8];
     GetEightVertices(all_vertices, cellId, dims); //now vertices is the point indices
     // contains ptind of first vertex, second vertext
@@ -341,28 +378,39 @@ float** InterpolateTriangle(float** tri, int** tri_by_edges, int cellId, float i
     int edge3pt1_ind = all_vertices[pt2[0]];
     int edge3pt2_ind = all_vertices[pt2[1]];
 
-    int edge1pt1_logical[3];
-    int edge1pt2_logical[3];
-    int edge2pt1_logical[3];
-    int edge2pt2_logical[3];
-    int edge3pt1_logical[3];
-    int edge3pt2_logical[3];
-    GetLogicalPointIndex(edge1pt1_logical, edge1pt1_ind, dims);
-    GetLogicalPointIndex(edge1pt2_logical, edge1pt2_ind, dims);
-    GetLogicalPointIndex(edge2pt1_logical, edge2pt1_ind, dims);
-    GetLogicalPointIndex(edge2pt2_logical, edge2pt2_ind, dims);
-    GetLogicalPointIndex(edge3pt1_logical, edge3pt1_ind, dims);
-    GetLogicalPointIndex(edge3pt2_logical, edge3pt2_ind, dims);
+    float XYZlocation[3] = {0.0, 0.0, 0.0};
+    float x1, y1, z1, x2, y2, z2, x3, y3, z3 = 0.0;
 
-    // now we have point inds and logical point inds for all six vertices making up the three edges
-    float CalculatePosition(float FX, float FA, float FB, float A, float B){
+    DetermineLocation(XYZlocation, tri_by_edges[0], edge1pt1_ind, edge1pt2_ind, isoval, F, X, Y, Z, dims);
+    x1 = XYZlocation[0];
+    y1 = XYZlocation[1];
+    z1 = XYZlocation[2];
 
-    float first = CalculatePosition(isoval, F[edge1pt1_ind], F[edge1pt2], X);
+    DetermineLocation(XYZlocation, tri_by_edges[1], edge2pt1_ind, edge2pt2_ind, isoval, F, X, Y, Z, dims);
+    x2 = XYZlocation[0];
+    y2 = XYZlocation[1];
+    z2 = XYZlocation[2];
+
+    DetermineLocation(XYZlocation, tri_by_edges[2], edge3pt1_ind, edge3pt2_ind, isoval, F, X, Y, Z, dims);
+    x3 = XYZlocation[0];
+    y3 = XYZlocation[1];
+    z3 = XYZlocation[2];
+
+    // set the return value!
+    tri[0][0] = x1;
+    tri[0][1] = y1;
+    tri[0][2] = z1;
+    tri[1][0] = x2;
+    tri[1][1] = y2;
+    tri[1][2] = z2;
+    tri[2][0] = x3;
+    tri[2][1] = y3;
+    tri[2][2] = z3;
 }
 
 int main()
 {
-    int  i, j;
+    int i;
 
     vtkDataSetReader *rdr = vtkDataSetReader::New();
     rdr->SetFileName("test_data.vtk");
@@ -374,6 +422,7 @@ int main()
 
     float *X = (float *) rgrid->GetXCoordinates()->GetVoidPointer(0);
     float *Y = (float *) rgrid->GetYCoordinates()->GetVoidPointer(0);
+    float *Z = (float *) rgrid->GetZCoordinates()->GetVoidPointer(0);
     float *F = (float *) rgrid->GetPointData()->GetScalars()->GetVoidPointer(0);
     
 
@@ -391,98 +440,34 @@ int main()
     int edge1 = 0;
     int edge2 = 0;
     int new_triangle_by_edges[3] = {0, 0, 0};
-    int triangle_by_vertex[3][2] = {{0,0},{0,0},{0,0}};
     float actual_triangle[3][3] = {{0.0,0.0,0.0},{0.0,0.0,0.0},{0.0,0.0,0.0}};
-    float pt1[2] = {0.0, 0.0};
-    float pt2[2] = {0.0, 0.0};
+    float x1, y1, z1, x2, y2, z2, x3, y3, z3 = 0.0;
     //iterate through cells
     fprintf(stdout, "num cells is %d\n", GetNumberOfCells(dims));
     for (i = 0; i < GetNumberOfCells(dims); i++){
         icase = IdentifyCase(i, IsoVal, dims, F);
-        int* edges = TriCases[icase];
+        int* edges = triCase[icase];
         while (*edges != -1){
             edge0 = *edges++;
             edge1 = *edges++;
             edge2 = *edges++;
-            new_triangle_by_edges = {edge0, edge1, edge2}; //0, 3, 8
+            new_triangle_by_edges[0] = edge0;
+            new_triangle_by_edges[1] = edge1;
+            new_triangle_by_edges[2] = edge2; //0, 3, 8
 
-
-            InterpolateTriangle(actual_triangle, new_triangle_by_edges, i, IsoVal, dims, F, X, Y, Z);
             //get real points now
-            // how do we want it?
-            // actual xyz coords of each of three points
-            AddTriangle(float X1, float Y1, float Z1, float X2, float Y2, float Z2, float X3, float Y3, float Z3)
+            InterpolateTriangle(actual_triangle, new_triangle_by_edges, i, IsoVal, dims, F, X, Y, Z);
+            x1 = actual_triangle[0][0];
+            y1 = actual_triangle[0][1];
+            z1 = actual_triangle[0][2];
+            x2 = actual_triangle[1][0];
+            y2 = actual_triangle[1][1];
+            z2 = actual_triangle[1][2];
+            x3 = actual_triangle[2][0];
+            y3 = actual_triangle[2][1];
+            z3 = actual_triangle[2][2];
 
-        }
-
-
-
-
-
-
-        for (j = 0; j < nsegments; j++){
-            edge1 = lup[icase][2*j];
-            edge2 = lup[icase][2*j+1];
-            fprintf(stdout, "\thas edge1 at %d and edge2 at %d\n", edge1, edge2);
-            GetFourCorners(fourcorns, i, dims);
-            llInd = fourcorns[0];
-            lrInd = fourcorns[1];
-            ulInd = fourcorns[2];
-            urInd = fourcorns[3];
-            GetLogicalPointIndex(ll, llInd, dims);
-            GetLogicalPointIndex(lr, lrInd, dims);
-            GetLogicalPointIndex(ul, ulInd, dims);
-            GetLogicalPointIndex(ur, urInd, dims);
-            Fll = F[llInd];
-            Flr = F[lrInd];
-            Ful = F[ulInd];
-            Fur = F[urInd];
-            fprintf(stdout, "\tll is %f,%f has val %f\n", X[ll[0]], Y[ll[1]], Fll);
-            fprintf(stdout, "\tlr is %f,%f has val %f\n", X[lr[0]], Y[lr[1]], Flr);
-            fprintf(stdout, "\tul is %f,%f has val %f\n", X[ul[0]], Y[ul[1]], Ful);
-            fprintf(stdout, "\tur is %f,%f has val %f\n", X[ur[0]], Y[ur[1]], Fur);
-            if (edge1 == 0){
-                //interpolate ll -> lr
-                pt1[0] = CalculatePosition(IsoVal, Fll, Flr, X[ll[0]], X[lr[0]]);
-                pt1[1] = Y[ll[1]];
-            }
-            else if (edge1 == 1){
-                //interpolate lr -> ur
-                pt1[0] = X[lr[0]];
-                pt1[1] = CalculatePosition(IsoVal, Flr, Fur, Y[lr[1]], Y[ur[1]]); // ****** comment this!
-            }
-            else if (edge1 == 2){
-                //interpolate ul -> ur
-                pt1[0] = CalculatePosition(IsoVal, Ful, Fur, X[ul[0]], X[ur[0]]);
-                pt1[1] = Y[ul[1]];
-            }
-            else if (edge1 == 3){
-                //interpolate ll -> ul
-                pt1[0] = X[ll[0]];
-                pt1[1] = CalculatePosition(IsoVal, F[llInd], F[ulInd], Y[ll[1]], Y[ul[1]]); //*** comment this!
-            }
-            if (edge2 == 0){
-                //interpolate ll -> lr
-                pt2[0] = CalculatePosition(IsoVal, F[llInd], F[lrInd], X[ll[0]], X[lr[0]]);
-                pt2[1] = Y[ll[1]];
-            }
-            else if (edge2 == 1){
-                //interpolate lr -> ur
-                pt2[0] = X[lr[0]];
-                pt2[1] = CalculatePosition(IsoVal, F[lrInd], F[urInd], Y[lr[1]], Y[ur[1]]); //*comment this!!!
-            }
-            else if (edge2 == 2){
-                //interpolate ul -> ur
-                pt2[0] = CalculatePosition(IsoVal, F[ulInd], F[urInd], X[ul[0]], X[ur[0]]);
-                pt2[1] = Y[ul[1]];
-            }
-            else if (edge2 == 3){
-                //interpolate ll -> ul
-                pt2[0] = X[ll[0]];
-                pt2[1] = CalculatePosition(IsoVal, F[llInd], F[ulInd], Y[ll[1]], Y[ul[1]]); ///**** comment this!
-            }
-            fprintf(stdout, "\tpt1x %f,%f, pt2x %f,%f\n", pt1[0], pt1[1], pt2[0], pt2[1]);
-            //sl.AddSegment(pt1[0], pt1[1], pt2[0], pt2[1]);
+            tl.AddTriangle(x1, y1, z1, x2, y2, z2, x3, y3, z3);
         }
     }
 
