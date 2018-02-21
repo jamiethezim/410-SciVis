@@ -361,7 +361,7 @@ void DetermineLocation(float* locations, int edgenum, int pt1, int pt2, float is
 //     {4, 5}, {5, 7}, {6, 7}, {4, 6},
 //     {0, 4}, {1, 5}, {2, 6}, {3, 7} };
 
-void InterpolateTriangle(float** tri, int* tri_by_edges, int cellId, float isoval, const int* dims, const float* F, const float* X, const float* Y, const float* Z){
+void InterpolateTriangle(float tri[3][3], int* tri_by_edges, int cellId, float isoval, const int* dims, const float* F, const float* X, const float* Y, const float* Z){
     int pt0[2] = {Edges[tri_by_edges[0]][0], Edges[tri_by_edges[0]][1]}; // edge 0 between vertex 0 and vertex 1
     int pt1[2] = {Edges[tri_by_edges[1]][0], Edges[tri_by_edges[1]][1]}; // edge 3 between vertex 0 and vertex 2
     int pt2[2] = {Edges[tri_by_edges[2]][0], Edges[tri_by_edges[2]][1]}; // edge 8 between vertex 0 and vertex 4
@@ -410,10 +410,10 @@ void InterpolateTriangle(float** tri, int* tri_by_edges, int cellId, float isova
 
 int main()
 {
-    int i;
+    int i, j, k;
 
     vtkDataSetReader *rdr = vtkDataSetReader::New();
-    rdr->SetFileName("test_data.vtk");
+    rdr->SetFileName("proj6B.vtk");
     rdr->Update();
 
     int dims[3];
@@ -427,7 +427,6 @@ int main()
     
 
     TriangleList tl;
-    // do I need to add borders around the frame like in proj 5?
 
     //static int Edges[12][2] = 
     //{{0, 1}, {1, 3}, {2, 3}, {0, 2},
@@ -442,8 +441,8 @@ int main()
     int new_triangle_by_edges[3] = {0, 0, 0};
     float actual_triangle[3][3] = {{0.0,0.0,0.0},{0.0,0.0,0.0},{0.0,0.0,0.0}};
     float x1, y1, z1, x2, y2, z2, x3, y3, z3 = 0.0;
+
     //iterate through cells
-    fprintf(stdout, "num cells is %d\n", GetNumberOfCells(dims));
     for (i = 0; i < GetNumberOfCells(dims); i++){
         icase = IdentifyCase(i, IsoVal, dims, F);
         int* edges = triCase[icase];

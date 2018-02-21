@@ -3,6 +3,7 @@
 
 CMakeFiles/proj7.dir/proj7.cxx.o: TriangleList.h
 CMakeFiles/proj7.dir/proj7.cxx.o: proj7.cxx
+CMakeFiles/proj7.dir/proj7.cxx.o: tricase.cxx
 CMakeFiles/proj7.dir/proj7.cxx.o: /Users/jamiezimmerman/projects/VTK-8.1.0/Common/Core/vtkABI.h
 CMakeFiles/proj7.dir/proj7.cxx.o: /Users/jamiezimmerman/projects/VTK-8.1.0/Common/Core/vtkAOSDataArrayTemplate.h
 CMakeFiles/proj7.dir/proj7.cxx.o: /Users/jamiezimmerman/projects/VTK-8.1.0/Common/Core/vtkAbstractArray.h
