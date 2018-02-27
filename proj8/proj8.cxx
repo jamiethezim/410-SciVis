@@ -44,6 +44,10 @@
 #include <vtkContourFilter.h>
 #include <vtkRectilinearGrid.h>
 
+#include <vtkLookupTable.h> // for the color look up table
+#include <vtkPlane.h> // for slicing
+#include <vtkCutter.h> //for slicing
+
 #include <vtkCamera.h>
 #include <vtkDataSetMapper.h>
 #include <vtkRenderer.h>
@@ -214,10 +218,13 @@ int main()
     float *Z = (float *) rgrid->GetZCoordinates()->GetVoidPointer(0);
     float *F = (float *) rgrid->GetPointData()->GetScalars()->GetVoidPointer(0);
     
-    double bottomleft[4] = {0.0, 0.5, 0.0, 0.5};
+    // (xmin, ymin, xmax, ymax)
+    double bottomleft[4] = {0.0, 0.0, 0.5, 0.5};
     double topleft[4] = {0.0, 0.5, 0.5, 1.0};
-    double bottomright[4] = {0.5, 1.0, 0.0, 0.5};
-    double topright[4] = {0.5, 1.0, 0.5, 1.0};
+    double bottomright[4] = {0.5, 0.0, 1.0, 0.5};
+    double topright[4] = {0.5, 0.5, 1.0, 1.0};
+
+    // create the renderers, window, interactor
     vtkSmartPointer<vtkRenderer> ren1 = vtkSmartPointer<vtkRenderer>::New();
     vtkSmartPointer<vtkRenderer> ren2 = vtkSmartPointer<vtkRenderer>::New();
     vtkSmartPointer<vtkRenderer> ren3 = vtkSmartPointer<vtkRenderer>::New();
@@ -225,6 +232,79 @@ int main()
     vtkSmartPointer<vtkRenderWindow> renWin = vtkSmartPointer<vtkRenderWindow>::New();
     vtkSmartPointer<vtkRenderWindowInteractor> iren = vtkSmartPointer<vtkRenderWindowInteractor>::New();
     
+    //and some source/map/actor stuff
+    vtkSmartPointer<vtkSphereSource> sphere_source = vtkSmartPointer<vtkSphereSource>::New();
+    vtkSmartPointer<vtkPolyDataMapper> sphere_map = vtkSmartPointer<vtkPolyDataMapper>::New();
+    vtkSmartPointer<vtkActor> sphere_actor1 = vtkSmartPointer<vtkActor>::New();
+    vtkSmartPointer<vtkActor> sphere_actor2 = vtkSmartPointer<vtkActor>::New();
+
+    // but now the actual actors we care about
+    vtkSmartPointer<vtkPolyDataMapper> contour_map = vtkSmartPointer<vtkPolyDataMapper>::New();
+    vtkSmartPointer<vtkActor> contour_actor = vtkSmartPointer<vtkActor>::New();
+    vtkContourFilter *cf = vtkContourFilter::New();
+    cf->SetNumberOfContours(2);
+    //Set the ith contour value.
+    cf->SetValue(0, 2.5);
+    cf->SetValue(1, 5.0);
+    cf->SetInputConnection(rdr->GetOutputPort());
+
+    // create color map
+    vtkSmartPointer<vtkLookupTable> colortable = vtkSmartPointer<vtkLookupTable>::New();
+    colortable->SetNumberOfColors(2);
+    colortable->SetHueRange(0.0, 0.8);
+    colortable->SetTableRange(0,2);
+    colortable->Build();
+    // map isosurface to actor
+    contour_map->SetInputConnection(cf->GetOutputPort());
+    contour_map->SetLookupTable(colortable);
+    contour_actor->SetMapper(contour_map);
+    contour_actor->GetProperty()->SetColor(1,1,0);
+
+
+    // render 2 - slices
+    vtkSmartPointer<vtkPolyDataMapper> cubeMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+    cubeMapper->SetInputConnection(rdr->GetOutputPort());
+    // Create a plane to cut,here it cuts in the XZ direction (xz normal=(1,0,0);XY =(0,0,1),YZ =(0,1,0)
+    vtkSmartPointer<vtkPlane> plane =
+    vtkSmartPointer<vtkPlane>::New();
+    plane->SetOrigin(rdr->GetOutput()->GetCenter());
+    plane->SetNormal(0, 0, 1);
+ 
+  // Create cutter
+    vtkSmartPointer<vtkCutter> cutter = vtkSmartPointer<vtkCutter>::New();
+    cutter->SetCutFunction(plane);
+    cutter->SetInputConnection(rdr->GetOutputPort());
+    cutter->Update();
+ 
+    vtkSmartPointer<vtkPolyDataMapper> cutterMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+    cutterMapper->SetInputConnection( cutter->GetOutputPort());
+ 
+    // Create plane actor
+    vtkSmartPointer<vtkActor> planeActor = vtkSmartPointer<vtkActor>::New();
+    planeActor->GetProperty()->SetColor(1.0,1,0);
+    planeActor->GetProperty()->SetLineWidth(3);
+    planeActor->SetMapper(cutterMapper);
+ 
+    // Create cube actor
+    vtkSmartPointer<vtkActor> cubeActor = vtkSmartPointer<vtkActor>::New();
+    cubeActor->GetProperty()->SetColor(0.5,1,0.5);
+    cubeActor->GetProperty()->SetOpacity(0.5);
+    cubeActor->SetMapper(cubeMapper);
+
+
+    // place holder spheres - delete as necessary
+    sphere_source->SetThetaResolution(100);
+    sphere_source->SetPhiResolution(50);
+    sphere_map->SetInputConnection(sphere_source->GetOutputPort());
+    sphere_actor1->SetMapper(sphere_map);
+    sphere_actor1->GetProperty()->SetColor(1,0,0); //red
+    sphere_actor1->AddPosition(1.75, 0.5, 0.5);
+    sphere_actor2->SetMapper(sphere_map);
+    sphere_actor2->GetProperty()->SetColor(0,1,0); //green
+    sphere_actor2->AddPosition(1.25, 0, 0);
+
+
+    // add renderer to window, and adjust placing
     renWin->AddRenderer(ren1);
     ren1->SetViewport(bottomleft);
     renWin->AddRenderer(ren2);
@@ -233,6 +313,18 @@ int main()
     ren3->SetViewport(bottomright);
     renWin->AddRenderer(ren4);
     ren4->SetViewport(topright);
+
+    // put the isosurface contour filter in ll corner
+    ren1->AddActor(contour_actor);
+    // put the cuts in render 2
+    ren2->AddActor(cubeActor);
+    ren2->AddActor(planeActor);
+
+    // put the sphere actors into the renderers
+    ren3->AddActor(sphere_actor1);
+    ren4->AddActor(sphere_actor2);
+
+    // start the window
     renWin->SetSize(800,800);
     iren->SetRenderWindow(renWin);
     //This can be useful for debugging
