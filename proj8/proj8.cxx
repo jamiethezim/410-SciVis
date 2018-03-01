@@ -44,11 +44,17 @@
 #include <vtkContourFilter.h>
 #include <vtkRectilinearGrid.h>
 
-#include <vtkLookupTable.h> // for the color look up table
+#include <vtkLookupTable.h> // for the color look up table - don't need this
 #include <vtkPlane.h> // for slicing
 #include <vtkCutter.h> //for slicing
-#include <vtkAppendPolyData.h>
 #include <vtkHedgeHog.h>
+#include <vtkGlyph3D.h> // use either glyph or hedgehog?
+#include <vtkArrowSource.h> // for glyphing
+#include <vtkMaskPoints.h>
+#include <vtkPointSource.h> // for streamlines
+#include <vtkLineSource.h>
+#include <vtkRungeKutta4.h> // for particle advection
+#include <vtkStreamTracer.h> //for streamlines
 
 #include <vtkCamera.h>
 #include <vtkDataSetMapper.h>
@@ -215,14 +221,13 @@ int main()
     int dims[3];
     vtkRectilinearGrid *rgrid = (vtkRectilinearGrid *) rdr->GetOutput();
     rgrid->GetDimensions(dims);
-
+    //rgrid->SetSampleRate(10,10,10);
 
     float *X = (float *) rgrid->GetXCoordinates()->GetVoidPointer(0);
     float *Y = (float *) rgrid->GetYCoordinates()->GetVoidPointer(0);
     float *Z = (float *) rgrid->GetZCoordinates()->GetVoidPointer(0);
     float *F = (float *) rgrid->GetPointData()->GetScalars()->GetVoidPointer(0);
     //float *F_vectors = (float *) rgrid->GetPointData()->GetVectors()->GetVoidPointer(0);
-
 
     // (xmin, ymin, xmax, ymax)
     double bottomleft[4] = {0.0, 0.0, 0.5, 0.5};
@@ -255,16 +260,17 @@ int main()
     cf->SetInputConnection(rdr->GetOutputPort());
 
     // create color map
-    vtkSmartPointer<vtkLookupTable> colortable = vtkSmartPointer<vtkLookupTable>::New();
-    colortable->SetNumberOfColors(2);
-    colortable->SetHueRange(0.0, 0.8);
-    colortable->SetTableRange(0,2);
-    colortable->Build();
+    //vtkSmartPointer<vtkLookupTable> colortable = vtkSmartPointer<vtkLookupTable>::New();
+    //colortable->SetNumberOfColors(2);
+    //colortable->SetHueRange(0.0, 0.8);
+    //colortable->SetTableRange(0,2);
+    //colortable->Build();
     // map isosurface to actor
     contour_map->SetInputConnection(cf->GetOutputPort());
-    contour_map->SetLookupTable(colortable);
+    //contour_map->SetLookupTable(colortable);
+    contour_map->SetScalarRange(0.0, 6.0);
     contour_actor->SetMapper(contour_map);
-    contour_actor->GetProperty()->SetColor(1,1,0);
+    //contour_actor->GetProperty()->SetColor(1,1,0);
 
 
 
@@ -347,48 +353,113 @@ int main()
     plane3Actor->SetMapper(cutterMapper3);
 
 
-    //vtkSmartPointer<vtkPolyDataMapper> the_mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
-    //the_mapper->SetScalarRange(0.0, 1.0);
-
-    //vtkSmartPointer<vtkAppendPolyData> slicedata = vtkSmartPointer<vtkAppendPolyData>::New();
-    //slicedata->AddInputData(cutter1->GetOutput());
-    //slicedata->AddInputData(cutter2->GetOutput());
-    //slicedata->AddInputData(cutter3->GetOutput());
-    //the_mapper->SetInputData(slicedata->GetOutput());
-    //the_mapper->SetScalarRange(0.0,0.0);
-    // create actor
-    //vtkSmartPointer<vtkActor> slicerActor = vtkSmartPointer<vtkActor>::New();
-    //slicerActor->SetMapper(the_mapper);
-
-
     // Render 3 - hedgehog
-    //vtkSmartPointer<vtkStructuredGrid> sgrid = vtkSmartPointer<vtkStructuredGrid>::New();
-    //vtkSmartPointer<vtkFloatArray> vectors = vtkSmartPointer<vtkFloatArray>::New(); // will be 
-    //vectors->SetNumberOfComponents(3); //grad vector has three components
-    //vectors->SetNumberOfTuples(dims[0]*dims[1]*dims[2]);
-    //vtkSmartPointer<vtkPoints> points = vtkSmartPointer<vtkPoints>::New();
-    //points->Allocate(dims[0]*dims[1]*dims[2]);
-    //// fill all the point data
-    //for (int i=0; i<dims[0]; i++){
-    //    for (int j=0; j<dims[1]; j++){
-    //        for (int k=0; k<dims[2]; k++){
-    //            points->InsertNextPoint(X[i], Y[j], Z[k]);
-    //        }
-    //    }
-    //}
+   
+    //vtkSmartPointer<vtkHedgeHog> hedgehog = vtkSmartPointer<vtkHedgeHog>::New();
+    //hedgehog->SetInputConnection(rdr->GetOutputPort()); // or is it SetInputData(sgrid)? 
+    //hedgehog->SetScaleFactor(0.8);
+    //vtkSmartPointer<vtkPolyDataMapper> hedgeMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+    //hedgeMapper->SetInputConnection(hedgehog->GetOutputPort());
+    //hedgeMapper->SetScalarRange(2.5, 5.0);
+    //vtkSmartPointer<vtkActor> HedgeActor = vtkSmartPointer<vtkActor>::New();
+    //HedgeActor->SetMapper(hedgeMapper);
 
-    //sgrid->SetPoints(points);
-    //sgrid->GetPointData()->SetVectors(vectors);
-    vtkSmartPointer<vtkHedgeHog> hedgehog = vtkSmartPointer<vtkHedgeHog>::New();
-    hedgehog->SetInputConnection(rdr->GetOutputPort()); // or is it SetInputData(sgrid)? 
-    hedgehog->SetScaleFactor(0.8);
-    vtkSmartPointer<vtkPolyDataMapper> hedgeMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
-    hedgeMapper->SetInputConnection(hedgehog->GetOutputPort());
-    vtkSmartPointer<vtkActor> HedgeActor = vtkSmartPointer<vtkActor>::New();
-    HedgeActor->SetMapper(hedgeMapper);
+
+    // vtkArrowSource arrow
+    // arrow SetTipResolution 6
+    // arrow SetTipRadius 0.1
+    // arrow SetTipLength 0.35
+    // arrow SetShaftResolution 6
+    // arrow SetShaftRadius 0.03
+    // vtkGlyph3D glyph
+    //glyph SetInput [reader GetOutputPort]
+    //glyph SetSource [arrow GetOutputPort]
+    //glyph SetVectorModeToUseVector
+    //glyph SetColorModeToColorByScalar
+    //glyph SetScaleModeToDataScalingOff
+    //glyph OrientOn
+    //glyph SetScaleFactor 0.2
+
+    vtkSmartPointer<vtkArrowSource> arrow = vtkSmartPointer<vtkArrowSource>::New();
+    arrow->SetTipResolution(6);
+    arrow->SetTipRadius(0.1);
+    arrow->SetTipLength(0.35);
+    arrow->SetShaftResolution(6);
+    arrow->SetShaftRadius(0.03);
+
+    vtkSmartPointer<vtkMaskPoints> ptMask = vtkSmartPointer<vtkMaskPoints>::New();
+    ptMask->SetInputConnection(rdr->GetOutputPort());
+    ptMask->SetOnRatio(11);
+    ptMask->Update();
+
+    vtkSmartPointer<vtkGlyph3D> glyph = vtkSmartPointer<vtkGlyph3D>::New();
+    glyph->SetSourceConnection(arrow->GetOutputPort());
+    glyph->SetInputData(ptMask->GetOutput()); // or is it set input (rdr get Output port)?
+    glyph->SetVectorModeToUseVector();
+    glyph->SetColorModeToColorByScalar();
+    glyph->SetScaleModeToDataScalingOff();
+    glyph->OrientOn();
+    glyph->SetScaleFactor(0.5);
+    glyph->Update();
+    vtkSmartPointer<vtkPolyDataMapper> glyphMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+    glyphMapper->SetInputConnection(glyph->GetOutputPort());
+    glyphMapper->SetScalarRange(2.5, 5.0); //for now?
+    vtkSmartPointer<vtkActor> glyphActor = vtkSmartPointer<vtkActor>::New();
+    glyphActor->SetMapper(glyphMapper);
 
     //HedgeActor->GetProperty()->SetColor(0,0,0);
- 
+
+
+
+    // renderer 4 - streamlines
+    // vtkPointSource seeds
+    //   seeds SetRadius 3.0
+    //   eval seeds SetCenter [[reader GetOutput] GetCenter]
+    //   seeds SetNumberOfPoints 100    //
+
+    //vtkRungeKutta4 integ    //
+
+    //vtkStreamTracer streamer
+    //   streamer SetInputConnection  [reader GetOutputPort]
+    //   streamer SetSourceConnection [seeds GetOutputPort]
+    //   streamer SetMaximumPropagation 100
+    //   streamer SetMaximumPropagationUnitToTimeUnit
+    //   streamer SetInitialIntegrationStepUnitToCellLengthUnit
+    //   streamer SetInitialIntegrationStep 0.1
+    //   streamer SetIntegrationDirectionToBoth
+    //   streamer SetIntegrator integ    //
+
+    //vtkPolyDataMapper mapStreamLines
+    //   mapStreamLines SetInputConnection [streamer GetOutputPort]
+    //   eval mapStreamLines SetScalarRange [[reader GetOutput] GetScalarRange]
+    
+    //vtkSmartPointer<vtkPointSource> seeds = vtkSmartPointer<vtkPointSource>::New();
+    //seeds->SetRadius(3.0);
+    //seeds->SetCenter(rdr->GetOutput()->GetCenter());
+
+    vtkSmartPointer<vtkLineSource> seeds = vtkSmartPointer<vtkLineSource>::New();
+    seeds->SetPoint1(-9,0,0);
+    seeds->SetPoint2(9,0,0);
+    seeds->SetResolution(19);
+
+    // create rk4 for particle advection
+    vtkSmartPointer<vtkStreamTracer> streamer = vtkSmartPointer<vtkStreamTracer>::New();
+    streamer->SetInputConnection(rdr->GetOutputPort());
+    streamer->SetSourceConnection(seeds->GetOutputPort());
+    streamer->SetMaximumPropagation(100);
+    //streamer->SetMaximumPropagationUnitToTimeUnit();
+    //streamer->SetInitialIntegrationStepUnitToCellLengthUnit();
+    streamer->SetInitialIntegrationStep(0.1);
+    streamer->SetIntegratorTypeToRungeKutta4();
+
+    vtkSmartPointer<vtkPolyDataMapper> streamlineMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+    streamlineMapper->SetInputConnection(streamer->GetOutputPort());
+    streamlineMapper->SetScalarRange(2.9, 5.0); //rdr->GetOutput()->GetScalarRange()
+
+    vtkSmartPointer<vtkActor> streamActor = vtkSmartPointer<vtkActor>::New();
+    streamActor->SetMapper(streamlineMapper);
+    
+
 
     // place holder spheres - delete as necessary
     sphere_source->SetThetaResolution(100);
@@ -419,12 +490,14 @@ int main()
     ren2->AddActor(plane2Actor);
     ren2->AddActor(plane3Actor);
     ren2->AddActor(cubeActor);
-    ren3->AddActor(HedgeActor);
+    ren3->AddActor(glyphActor);
+    ren4->AddActor(streamActor);
+
 
 
 
     // put the sphere actors into the renderers placeholder
-    ren4->AddActor(sphere_actor2);
+    //ren4->AddActor(sphere_actor1);
 
     // start the window
     renWin->SetSize(800,800);
