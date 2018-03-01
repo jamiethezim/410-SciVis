@@ -47,6 +47,8 @@
 #include <vtkLookupTable.h> // for the color look up table
 #include <vtkPlane.h> // for slicing
 #include <vtkCutter.h> //for slicing
+#include <vtkAppendPolyData.h>
+#include <vtkHedgeHog.h>
 
 #include <vtkCamera.h>
 #include <vtkDataSetMapper.h>
@@ -208,16 +210,20 @@ int main()
     vtkDataSetReader *rdr = vtkDataSetReader::New();
     rdr->SetFileName("proj8.vtk");
     rdr->Update();
+    rdr->GetOutput()->GetPointData()->SetActiveAttribute("grad", vtkDataSetAttributes::VECTORS);
 
     int dims[3];
     vtkRectilinearGrid *rgrid = (vtkRectilinearGrid *) rdr->GetOutput();
     rgrid->GetDimensions(dims);
 
+
     float *X = (float *) rgrid->GetXCoordinates()->GetVoidPointer(0);
     float *Y = (float *) rgrid->GetYCoordinates()->GetVoidPointer(0);
     float *Z = (float *) rgrid->GetZCoordinates()->GetVoidPointer(0);
     float *F = (float *) rgrid->GetPointData()->GetScalars()->GetVoidPointer(0);
-    
+    //float *F_vectors = (float *) rgrid->GetPointData()->GetVectors()->GetVoidPointer(0);
+
+
     // (xmin, ymin, xmax, ymax)
     double bottomleft[4] = {0.0, 0.0, 0.5, 0.5};
     double topleft[4] = {0.0, 0.5, 0.5, 1.0};
@@ -261,36 +267,128 @@ int main()
     contour_actor->GetProperty()->SetColor(1,1,0);
 
 
+
     // render 2 - slices
+    // get the vector data from rdr
+    //vtkDataSet *scalarData = rdr->GetOutput();
+    //scalarData->GetPointData()->SetActiveScalars("hardyglobal");
+    //scalarData->Update();
+
     vtkSmartPointer<vtkPolyDataMapper> cubeMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
     cubeMapper->SetInputConnection(rdr->GetOutputPort());
-    // Create a plane to cut,here it cuts in the XZ direction (xz normal=(1,0,0);XY =(0,0,1),YZ =(0,1,0)
-    vtkSmartPointer<vtkPlane> plane =
-    vtkSmartPointer<vtkPlane>::New();
-    plane->SetOrigin(rdr->GetOutput()->GetCenter());
-    plane->SetNormal(0, 0, 1);
- 
-  // Create cutter
-    vtkSmartPointer<vtkCutter> cutter = vtkSmartPointer<vtkCutter>::New();
-    cutter->SetCutFunction(plane);
-    cutter->SetInputConnection(rdr->GetOutputPort());
-    cutter->Update();
- 
-    vtkSmartPointer<vtkPolyDataMapper> cutterMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
-    cutterMapper->SetInputConnection( cutter->GetOutputPort());
- 
-    // Create plane actor
-    vtkSmartPointer<vtkActor> planeActor = vtkSmartPointer<vtkActor>::New();
-    planeActor->GetProperty()->SetColor(1.0,1,0);
-    planeActor->GetProperty()->SetLineWidth(3);
-    planeActor->SetMapper(cutterMapper);
- 
-    // Create cube actor
-    vtkSmartPointer<vtkActor> cubeActor = vtkSmartPointer<vtkActor>::New();
-    cubeActor->GetProperty()->SetColor(0.5,1,0.5);
-    cubeActor->GetProperty()->SetOpacity(0.5);
-    cubeActor->SetMapper(cubeMapper);
+    cubeMapper->SetScalarRange(2.5, 5.0);
 
+
+    // Create a plane to cut,here it cuts in the XZ direction (xz normal=(1,0,0);XY =(0,0,1),YZ =(0,1,0)
+    vtkSmartPointer<vtkPlane> plane1 = vtkSmartPointer<vtkPlane>::New();
+    plane1->SetOrigin(rdr->GetOutput()->GetCenter());
+    plane1->SetNormal(0,0,1);
+
+    // Create a second plane
+    vtkSmartPointer<vtkPlane> plane2 = vtkSmartPointer<vtkPlane>::New();
+    plane2->SetOrigin(rdr->GetOutput()->GetCenter());
+    plane2->SetNormal(0,1,0);
+
+        // Create a second plane
+    vtkSmartPointer<vtkPlane> plane3 = vtkSmartPointer<vtkPlane>::New();
+    plane3->SetOrigin(rdr->GetOutput()->GetCenter());
+    plane3->SetNormal(1,0,0);
+ 
+    // Create cutter
+    vtkSmartPointer<vtkCutter> cutter1 = vtkSmartPointer<vtkCutter>::New();
+    cutter1->SetCutFunction(plane1);
+    cutter1->SetInputConnection(rdr->GetOutputPort());
+    cutter1->Update();
+
+    // Create cutter
+    vtkSmartPointer<vtkCutter> cutter2 = vtkSmartPointer<vtkCutter>::New();
+    cutter2->SetCutFunction(plane2);
+    cutter2->SetInputConnection(rdr->GetOutputPort());
+    cutter2->Update();
+
+     // Create cutter
+    vtkSmartPointer<vtkCutter> cutter3 = vtkSmartPointer<vtkCutter>::New();
+    cutter3->SetCutFunction(plane3);
+    cutter3->SetInputConnection(rdr->GetOutputPort());
+    cutter3->Update();
+ 
+    vtkSmartPointer<vtkPolyDataMapper> cutterMapper1 = vtkSmartPointer<vtkPolyDataMapper>::New();
+    cutterMapper1->SetInputConnection( cutter1->GetOutputPort());
+    cutterMapper1->SetScalarRange(1.5, 5.0);
+    vtkSmartPointer<vtkPolyDataMapper> cutterMapper2 = vtkSmartPointer<vtkPolyDataMapper>::New();
+    cutterMapper2->SetInputConnection( cutter2->GetOutputPort());
+    cutterMapper2->SetScalarRange(1.5, 5.0);
+    vtkSmartPointer<vtkPolyDataMapper> cutterMapper3 = vtkSmartPointer<vtkPolyDataMapper>::New();
+    cutterMapper3->SetInputConnection( cutter3->GetOutputPort());
+    cutterMapper3->SetScalarRange(1.5, 5.0);
+
+ 
+   // Create cube actor
+    vtkSmartPointer<vtkActor> cubeActor = vtkSmartPointer<vtkActor>::New();
+    //cubeActor->GetProperty()->SetColor(0.5,1,0.5);
+    cubeActor->GetProperty()->SetOpacity(0.1);
+    cubeActor->SetMapper(cubeMapper);
+  // Create plane actor
+    vtkSmartPointer<vtkActor> plane1Actor = vtkSmartPointer<vtkActor>::New();
+    //plane1Actor->GetProperty()->SetColor(1.0,1,0);
+    plane1Actor->GetProperty()->SetLineWidth(3);
+    plane1Actor->SetMapper(cutterMapper1);
+
+  // Create plane actor
+    vtkSmartPointer<vtkActor> plane2Actor = vtkSmartPointer<vtkActor>::New();
+    //plane2Actor->GetProperty()->SetColor(1.0,1,0);
+    plane2Actor->GetProperty()->SetLineWidth(3);
+    plane2Actor->SetMapper(cutterMapper2);
+
+  // Create plane actor
+    vtkSmartPointer<vtkActor> plane3Actor = vtkSmartPointer<vtkActor>::New();
+    //plane3Actor->GetProperty()->SetColor(1.0,1,0);
+    plane3Actor->GetProperty()->SetLineWidth(3);
+    plane3Actor->SetMapper(cutterMapper3);
+
+
+    //vtkSmartPointer<vtkPolyDataMapper> the_mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+    //the_mapper->SetScalarRange(0.0, 1.0);
+
+    //vtkSmartPointer<vtkAppendPolyData> slicedata = vtkSmartPointer<vtkAppendPolyData>::New();
+    //slicedata->AddInputData(cutter1->GetOutput());
+    //slicedata->AddInputData(cutter2->GetOutput());
+    //slicedata->AddInputData(cutter3->GetOutput());
+    //the_mapper->SetInputData(slicedata->GetOutput());
+    //the_mapper->SetScalarRange(0.0,0.0);
+    // create actor
+    //vtkSmartPointer<vtkActor> slicerActor = vtkSmartPointer<vtkActor>::New();
+    //slicerActor->SetMapper(the_mapper);
+
+
+    // Render 3 - hedgehog
+    //vtkSmartPointer<vtkStructuredGrid> sgrid = vtkSmartPointer<vtkStructuredGrid>::New();
+    //vtkSmartPointer<vtkFloatArray> vectors = vtkSmartPointer<vtkFloatArray>::New(); // will be 
+    //vectors->SetNumberOfComponents(3); //grad vector has three components
+    //vectors->SetNumberOfTuples(dims[0]*dims[1]*dims[2]);
+    //vtkSmartPointer<vtkPoints> points = vtkSmartPointer<vtkPoints>::New();
+    //points->Allocate(dims[0]*dims[1]*dims[2]);
+    //// fill all the point data
+    //for (int i=0; i<dims[0]; i++){
+    //    for (int j=0; j<dims[1]; j++){
+    //        for (int k=0; k<dims[2]; k++){
+    //            points->InsertNextPoint(X[i], Y[j], Z[k]);
+    //        }
+    //    }
+    //}
+
+    //sgrid->SetPoints(points);
+    //sgrid->GetPointData()->SetVectors(vectors);
+    vtkSmartPointer<vtkHedgeHog> hedgehog = vtkSmartPointer<vtkHedgeHog>::New();
+    hedgehog->SetInputConnection(rdr->GetOutputPort()); // or is it SetInputData(sgrid)? 
+    hedgehog->SetScaleFactor(0.8);
+    vtkSmartPointer<vtkPolyDataMapper> hedgeMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+    hedgeMapper->SetInputConnection(hedgehog->GetOutputPort());
+    vtkSmartPointer<vtkActor> HedgeActor = vtkSmartPointer<vtkActor>::New();
+    HedgeActor->SetMapper(hedgeMapper);
+
+    //HedgeActor->GetProperty()->SetColor(0,0,0);
+ 
 
     // place holder spheres - delete as necessary
     sphere_source->SetThetaResolution(100);
@@ -317,11 +415,15 @@ int main()
     // put the isosurface contour filter in ll corner
     ren1->AddActor(contour_actor);
     // put the cuts in render 2
+    ren2->AddActor(plane1Actor);
+    ren2->AddActor(plane2Actor);
+    ren2->AddActor(plane3Actor);
     ren2->AddActor(cubeActor);
-    ren2->AddActor(planeActor);
+    ren3->AddActor(HedgeActor);
 
-    // put the sphere actors into the renderers
-    ren3->AddActor(sphere_actor1);
+
+
+    // put the sphere actors into the renderers placeholder
     ren4->AddActor(sphere_actor2);
 
     // start the window
