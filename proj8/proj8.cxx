@@ -389,7 +389,7 @@ int main()
 
     vtkSmartPointer<vtkMaskPoints> ptMask = vtkSmartPointer<vtkMaskPoints>::New();
     ptMask->SetInputConnection(rdr->GetOutputPort());
-    ptMask->SetOnRatio(11);
+    ptMask->SetOnRatio(63);
     ptMask->Update();
 
     vtkSmartPointer<vtkGlyph3D> glyph = vtkSmartPointer<vtkGlyph3D>::New();
@@ -399,7 +399,7 @@ int main()
     glyph->SetColorModeToColorByScalar();
     glyph->SetScaleModeToDataScalingOff();
     glyph->OrientOn();
-    glyph->SetScaleFactor(0.5);
+    glyph->SetScaleFactor(1.5);
     glyph->Update();
     vtkSmartPointer<vtkPolyDataMapper> glyphMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
     glyphMapper->SetInputConnection(glyph->GetOutputPort());
@@ -432,10 +432,6 @@ int main()
     //vtkPolyDataMapper mapStreamLines
     //   mapStreamLines SetInputConnection [streamer GetOutputPort]
     //   eval mapStreamLines SetScalarRange [[reader GetOutput] GetScalarRange]
-    
-    //vtkSmartPointer<vtkPointSource> seeds = vtkSmartPointer<vtkPointSource>::New();
-    //seeds->SetRadius(3.0);
-    //seeds->SetCenter(rdr->GetOutput()->GetCenter());
 
     vtkSmartPointer<vtkLineSource> seeds = vtkSmartPointer<vtkLineSource>::New();
     seeds->SetPoint1(-9,0,0);
@@ -459,20 +455,6 @@ int main()
     vtkSmartPointer<vtkActor> streamActor = vtkSmartPointer<vtkActor>::New();
     streamActor->SetMapper(streamlineMapper);
     
-
-
-    // place holder spheres - delete as necessary
-    sphere_source->SetThetaResolution(100);
-    sphere_source->SetPhiResolution(50);
-    sphere_map->SetInputConnection(sphere_source->GetOutputPort());
-    sphere_actor1->SetMapper(sphere_map);
-    sphere_actor1->GetProperty()->SetColor(1,0,0); //red
-    sphere_actor1->AddPosition(1.75, 0.5, 0.5);
-    sphere_actor2->SetMapper(sphere_map);
-    sphere_actor2->GetProperty()->SetColor(0,1,0); //green
-    sphere_actor2->AddPosition(1.25, 0, 0);
-
-
     // add renderer to window, and adjust placing
     renWin->AddRenderer(ren1);
     ren1->SetViewport(bottomleft);
@@ -492,12 +474,6 @@ int main()
     ren2->AddActor(cubeActor);
     ren3->AddActor(glyphActor);
     ren4->AddActor(streamActor);
-
-
-
-
-    // put the sphere actors into the renderers placeholder
-    //ren4->AddActor(sphere_actor1);
 
     // start the window
     renWin->SetSize(800,800);
